@@ -1,0 +1,130 @@
+[project]
+name = "cuvis-ai-efficientad"
+dynamic = ["version"]
+description = "EfficientAD for Cuvis.AI: student-teacher + autoencoder anomaly maps of an RGB frame (anomalib 2.1.0 model)"
+requires-python = ">=3.11,<3.12"
+authors = [
+  { name = "Cubert GmbH", email = "cuvis.ai@cubert-gmbh.de" },
+]
+maintainers = [
+  { name = "Cubert GmbH", email = "cuvis.ai@cubert-gmbh.de" },
+]
+license = { text = "Apache-2.0" }
+readme = "README.md"
+
+keywords = [
+  "cuvis",
+  "hyperspectral",
+  "anomaly-detection",
+  "efficientad",
+  "anomalib",
+  "plugin",
+  "cuvis-ai",
+]
+
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Image Processing",
+  "Operating System :: OS Independent",
+]
+
+dependencies = [
+  # Plugins target cuvis-ai-core + cuvis-ai-schemas only (never the high-level cuvis-ai package).
+  "cuvis-ai-core>=0.15.0",
+  "cuvis-ai-schemas>=0.10.0",
+  # The EfficientAD torch model (PDN teacher / student + autoencoder) is used unchanged from anomalib;
+  # pinned to the release the weights were trained with.
+  "anomalib==2.1.0",
+  # anomalib 2.1.0 declares neither torch nor torchvision (they are extras there).
+  "torch>=2.2",
+  "torchvision>=0.17",
+  # Importing an anomalib model triggers anomalib.models.__init__, which eagerly loads every model:
+  # WinClip needs open_clip and the video chain (ai_vad.clip) needs requests. Both are undeclared
+  # runtime dependencies of anomalib 2.1.0 (cuvis-ai-dinomaly declares them for the same reason).
+  "open-clip-torch>=2.24.0",
+  "requests>=2.31.0",
+  "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7",
+  "pytest-cov",
+  "ruff",
+  "mypy",
+  "bandit",
+  "detect-secrets",
+  "pip-audit",
+  "twine>=6.2.0",
+  "pyyaml",
+]
+
+[project.urls]
+Homepage   = "https://docs.cuvis.ai/latest/"
+Repository = "https://github.com/cubert-hyperspectral/cuvis-ai-efficientad"
+Issues     = "https://github.com/cubert-hyperspectral/cuvis-ai-efficientad/issues"
+Changelog  = "https://github.com/cubert-hyperspectral/cuvis-ai-efficientad/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["cuvis_ai_efficientad*"]
+
+[tool.setuptools_scm]
+# Version is derived from git tags (v0.1.0 -> 0.1.0); pre-tag builds get post-release dev versions.
+version_scheme = "post-release"
+local_scheme = "node-and-date"
+fallback_version = "0.1.0"
+
+# No torch index pin: as in cuvis-ai-dinomaly, the committed lock resolves torch from PyPI and the
+# torch flavour of a composed child environment is mirrored from the host by cuvis-ai-core.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+  "unit: small, fast tests that don't touch network or large data files.",
+  "integration: full-stack tests (manifest loading via NodeRegistry, pipeline reload).",
+  "slow: tests that need a trained anomalib checkpoint (EFFICIENTAD_CKPT), skipped in CI (run with -m slow).",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "C4"]
+extend-select = ["ANN201", "ANN202", "ANN204"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests: return-type annotations are readability noise, not defects.
+"tests/**" = ["ANN201", "ANN202", "ANN204"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = ["tests", "examples", "build", "dist"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "build", "dist"]
+skips = ["B101"]
+
+[tool.coverage.run]
+source = ["cuvis_ai_efficientad"]
+omit = ["tests/*", "examples/*"]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
