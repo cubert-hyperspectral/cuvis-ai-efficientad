@@ -71,7 +71,19 @@ capabilities:
   - class_name: cuvis_ai_efficientad.node.efficientad.EfficientAdDetector
 ```
 
-Frozen consumers use the git-tag form (`repo:` + `tag:`) once a release is tagged.
+Frozen consumers use the git-tag form, which the loader clones at the tag and installs:
+
+```yaml
+name: efficientad
+repo: "https://github.com/cubert-hyperspectral/cuvis-ai-efficientad.git"
+tag: "v0.1.0"
+package_name: cuvis-ai-efficientad
+capabilities:
+  - class_name: cuvis_ai_efficientad.node.efficientad.EfficientAdDetector
+```
+
+A pipeline that lists `efficientad` in its `plugins:` pulls anomalib 2.1.0 and its dependencies
+into the composed child environment on first use.
 
 ## Development
 

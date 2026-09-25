@@ -20,7 +20,7 @@ permissions:
 env:
   # cuvis-ai-core ref to audit against. Pin to the release tag this plugin
   # targets (its pyproject `cuvis-ai-core>=X`); `main` tracks the latest.
-  CORE_REF: v0.15.0
+  CORE_REF: v0.17.4
 
 jobs:
   compat:
