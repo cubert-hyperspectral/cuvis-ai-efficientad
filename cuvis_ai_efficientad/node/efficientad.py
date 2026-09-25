@@ -145,6 +145,9 @@ class EfficientAdDetector(Node):
         because the model would then silently average un-normalised maps. A Lightning checkpoint
         also pickles the training module's classes, so it loads only where they are importable; a
         file holding just ``{"state_dict": ...}`` loads anywhere.
+
+        The file is unpickled (``weights_only=False``: a Lightning checkpoint needs it), and
+        unpickling can execute code. Load only checkpoints you trust, e.g. your own training runs.
         """
         try:
             ckpt = torch.load(str(path), map_location="cpu", weights_only=False)
