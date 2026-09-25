@@ -20,8 +20,8 @@
   README also shows the git-tag form) and tests: anomalib inference-path parity, image score, quantile
   normalisation, port contract, frozen state and eval pinning, checkpoint import and rejection,
   hparam validation, manifest loading, and a pipeline reload smoke.
-- Added CI (tests, lint, type check, security scan, build, release on `v*` tags) and a dependency
-  compatibility audit against cuvis-ai-core v0.17.4.
+- Added CI (tests on Python 3.11 and 3.13 for every pull request, lint, type check, security scan,
+  build, release on `v*` tags) and a dependency compatibility audit against cuvis-ai-core v0.17.4.
 - Added the `cuda` dependency group for local GPU development: torch and torchvision come from the
   cu128 index (cu130 on aarch64 Linux / Jetson). The pins are scoped to the group, so an
   environment that installs the plugin as a path or git dependency inherits none; a guard test

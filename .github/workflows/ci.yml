@@ -5,8 +5,8 @@ on:
     branches: [main]
     tags-ignore:
       - "v*.*.*"
+  # Every pull request, including stacked PRs whose base is another feature branch.
   pull_request:
-    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,20 +14,26 @@ concurrency:
 
 jobs:
   test:
-    name: Test suite
+    name: Test suite (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Both ends of requires-python (>=3.11,<3.14).
+        python-version: ["3.11", "3.13"]
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
       - uses: astral-sh/setup-uv@v3
       # --no-sources ignores the [tool.uv.sources] cu128 index (CI is CPU-only); --locked uses the
       # committed uv.lock (generated with --no-sources) so CI is reproducible. `-m "not slow"` keeps
       # the `integration` manifest-loading smoke test on (the skill's required verification step).
-      # Replace `cuvis_ai_efficientad` below with your real import package name (leave `tests` literal).
       - name: Run tests
         run: |
           uv run --no-sources --locked --extra dev pytest tests/ -m "not slow" -v --tb=long -ra \
@@ -36,6 +42,7 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=70
       - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.11'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -53,9 +60,6 @@ jobs:
         with:
           python-version: "3.11"
       - uses: astral-sh/setup-uv@v3
-      # Replace `cuvis_ai_efficientad` with your real import package name; keep `tests` literal. The greenfield
-      # skeleton ships no examples/ dir and ruff errors on a missing path, so `examples` is not listed
-      # here; append it once you ship an examples/ dir (forked/mature plugins do).
       - name: Check formatting
         run: uv run --no-sources --locked --extra dev ruff format --check cuvis_ai_efficientad tests
       - name: Run ruff
