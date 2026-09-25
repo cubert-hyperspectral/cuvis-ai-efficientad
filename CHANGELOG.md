@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.1.0 - 2026-09-25
+
 ### Added
 - Added `EfficientAdDetector`: EfficientAD (student-teacher + autoencoder) anomaly map
   `scores [B, H, W, 1]` and top-k `anomaly_score [B]` of an RGB frame, with anomalib 2.1.0's
