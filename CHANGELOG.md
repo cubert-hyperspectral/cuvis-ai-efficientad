@@ -22,3 +22,8 @@
   hparam validation, manifest loading, and a pipeline reload smoke.
 - Added CI (tests, lint, type check, security scan, build, release on `v*` tags) and a dependency
   compatibility audit against cuvis-ai-core v0.17.4.
+- Added the `cuda` dependency group for local GPU development: torch and torchvision come from the
+  cu128 index (cu130 on aarch64 Linux / Jetson). The pins are scoped to the group, so an
+  environment that installs the plugin as a path or git dependency inherits none; a guard test
+  checks this and that the committed lock (the CI lock) resolves torch from PyPI.
+- Targets cuvis-ai-core >= 0.17.4 and cuvis-ai-schemas >= 0.12.0 on Python 3.11 – 3.13.

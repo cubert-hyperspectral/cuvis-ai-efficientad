@@ -2,7 +2,7 @@
 name = "cuvis-ai-efficientad"
 dynamic = ["version"]
 description = "EfficientAD for Cuvis.AI: student-teacher + autoencoder anomaly maps of an RGB frame (anomalib 2.1.0 model)"
-requires-python = ">=3.11,<3.12"
+requires-python = ">=3.11,<3.14"
 authors = [
   { name = "Cubert GmbH", email = "cuvis.ai@cubert-gmbh.de" },
 ]
@@ -29,6 +29,8 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Scientific/Engineering :: Image Processing",
@@ -37,8 +39,8 @@ classifiers = [
 
 dependencies = [
   # Plugins target cuvis-ai-core + cuvis-ai-schemas only (never the high-level cuvis-ai package).
-  "cuvis-ai-core>=0.15.0",
-  "cuvis-ai-schemas>=0.10.0",
+  "cuvis-ai-core>=0.17.4",
+  "cuvis-ai-schemas>=0.12.0",
   # The EfficientAD torch model (PDN teacher / student + autoencoder) is used unchanged from anomalib;
   # pinned to the release the weights were trained with.
   "anomalib==2.1.0",
@@ -85,8 +87,42 @@ version_scheme = "post-release"
 local_scheme = "node-and-date"
 fallback_version = "0.1.0"
 
-# No torch index pin: as in cuvis-ai-dinomaly, the committed lock resolves torch from PyPI and the
-# torch flavour of a composed child environment is mirrored from the host by cuvis-ai-core.
+[tool.uv]
+default-groups = ["cuda"]
+
+# GPU torch / torchvision for a local `uv sync`, as cuvis-ai does it: aarch64 Linux (Jetson Thor,
+# CUDA 13) resolves from cu130, every other platform from cu128. Both entries are scoped to the
+# `cuda` dependency group, because uv also reads a path or git dependency's `[tool.uv.sources]`: an
+# unscoped pin would reach every composed child environment that installs this plugin and collide
+# with the torch index mirrored from the host there. CI runs `uv run --no-sources --locked` against
+# a uv.lock generated with `uv lock --no-sources` (torch from PyPI); do not commit a lock resolved
+# with the sources. tests/test_pyproject_torch_sources.py guards this block and the lock.
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu128", group = "cuda", marker = "sys_platform != 'linux' or platform_machine != 'aarch64'" },
+  { index = "pytorch-cu130", group = "cuda", marker = "sys_platform == 'linux' and platform_machine == 'aarch64'" },
+]
+torchvision = [
+  { index = "pytorch-cu128", group = "cuda", marker = "sys_platform != 'linux' or platform_machine != 'aarch64'" },
+  { index = "pytorch-cu130", group = "cuda", marker = "sys_platform == 'linux' and platform_machine == 'aarch64'" },
+]
+
+[dependency-groups]
+# Floors live in [project].dependencies; this group only carries the torch index pins.
+cuda = [
+  "torch",
+  "torchvision",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
