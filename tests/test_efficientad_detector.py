@@ -3,6 +3,9 @@ import, hparam validation."""
 
 from __future__ import annotations
 
+import sys
+import types
+
 import pytest
 import torch
 import torch.nn.functional as F
@@ -91,6 +94,36 @@ def test_load_checkpoint_rejects_foreign_and_unvalidated(tmp_path):
     torch.save({"state_dict": {f"model.{k}": v for k, v in raw.state_dict().items()}}, unvalidated)
     with pytest.raises(ValueError, match="quantiles"):
         node.load_anomalib_checkpoint(unvalidated)
+
+
+class _TrainingOnlyClass:
+    """Stands in for a training subclass that is pickled into a Lightning checkpoint."""
+
+
+def test_load_checkpoint_with_unimportable_training_class(tmp_path, monkeypatch):
+    src = EfficientAdModel()
+    set_trained_state(src, seed=3)
+    module = types.ModuleType("_effad_training_code")
+    module._TrainingOnlyClass = _TrainingOnlyClass
+    monkeypatch.setattr(_TrainingOnlyClass, "__module__", module.__name__)
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    path = tmp_path / "subclassed.ckpt"
+    torch.save(
+        {
+            "state_dict": {f"model.{k}": v for k, v in src.state_dict().items()},
+            "hyper_parameters": {"module": _TrainingOnlyClass()},
+        },
+        path,
+    )
+    monkeypatch.delitem(sys.modules, module.__name__)  # the training code is not installed here
+    node = EfficientAdDetector(image_size=SIZE)
+    with pytest.raises(ValueError, match="cannot be imported here"):
+        node.load_anomalib_checkpoint(path)
+    tensors_only = tmp_path / "weights.ckpt"
+    torch.save({"state_dict": {f"model.{k}": v for k, v in src.state_dict().items()}}, tensors_only)
+    node.load_anomalib_checkpoint(tensors_only)
+    for k, v in src.state_dict().items():
+        assert torch.equal(node.model.state_dict()[k], v), k
 
 
 @pytest.mark.parametrize(

@@ -142,9 +142,18 @@ class EfficientAdDetector(Node):
 
         All tensors load strictly: teacher, student, autoencoder, the teacher mean / std and the
         map quantiles. A checkpoint without quantiles (never validated on normal images) raises,
-        because the model would then silently average un-normalised maps.
+        because the model would then silently average un-normalised maps. A Lightning checkpoint
+        also pickles the training module's classes, so it loads only where they are importable; a
+        file holding just ``{"state_dict": ...}`` loads anywhere.
         """
-        ckpt = torch.load(str(path), map_location="cpu", weights_only=False)
+        try:
+            ckpt = torch.load(str(path), map_location="cpu", weights_only=False)
+        except (ModuleNotFoundError, AttributeError) as e:
+            raise ValueError(
+                f"{path}: the checkpoint pickles a training class that cannot be imported here "
+                f"({e}). Load it where the training code is importable, or keep only its "
+                "tensors first: torch.save({'state_dict': ckpt['state_dict']}, 'weights.ckpt')"
+            ) from e
         state = ckpt.get("state_dict", ckpt)
         model_state = {k[len("model.") :]: v for k, v in state.items() if k.startswith("model.")}
         if not model_state:

@@ -46,12 +46,17 @@ returns training losses in train mode. There is no Phase 1 and no `TRAINABLE_BUF
 from cuvis_ai_efficientad import EfficientAdDetector
 
 det = EfficientAdDetector(image_size=512, name="efficientad")
-det.load_anomalib_checkpoint("model_final.ckpt")   # anomalib EfficientAd Lightning checkpoint
+det.load_anomalib_checkpoint("model_final.ckpt")  # anomalib EfficientAd Lightning checkpoint
 # ... wire det into a CuvisPipeline, then pipeline.save_to_file("efficientad.yaml")
 ```
 
 The checkpoint must come from a model whose quantiles were set on normal images (anomalib does
 this at the start of validation). An all-zero-quantile checkpoint is rejected.
+
+A Lightning checkpoint also pickles the classes of the training module. If you trained a subclass
+of `EfficientAd`, load the checkpoint where that class is importable, or keep only its tensors
+first, `torch.save({"state_dict": ckpt["state_dict"]}, "weights.ckpt")`, which loads anywhere.
+Deployment is unaffected: the saved pipeline `.pt` holds plain tensors.
 
 ## Install
 
