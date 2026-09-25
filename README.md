@@ -18,6 +18,8 @@ Training stays in anomalib: `EfficientAd` + `Engine`, with its ImageNet penalty,
 and quantiles. The trained weights are imported with `load_anomalib_checkpoint` before the pipeline
 is saved; the pipeline `.pt` then carries the whole detector.
 
+Requires `cuvis-ai-core >= 0.17.4` and `cuvis-ai-schemas >= 0.12.0` on Python 3.11 – 3.13.
+
 ## Nodes
 
 ### `cuvis_ai_efficientad.node.efficientad.EfficientAdDetector`
@@ -58,6 +60,10 @@ of `EfficientAd`, load the checkpoint where that class is importable, or keep on
 first, `torch.save({"state_dict": ckpt["state_dict"]}, "weights.ckpt")`, which loads anywhere.
 Deployment is unaffected: the saved pipeline `.pt` holds plain tensors.
 
+`load_anomalib_checkpoint` unpickles the file (`weights_only=False`, which a Lightning checkpoint
+needs), and unpickling can execute code: load only checkpoints you trust, such as your own
+training runs.
+
 ## Install
 
 Local development: a bare manifest pointing at the checkout. The path is relative to the
@@ -87,12 +93,25 @@ into the composed child environment on first use.
 
 ## Development
 
+CI runs the suite on Python 3.11 and 3.13 with the committed lock:
+
 ```bash
-uv sync --extra dev
-uv run --extra dev pytest tests -m "not slow"
-uv run --extra dev ruff format --check cuvis_ai_efficientad tests
-uv run --extra dev ruff check cuvis_ai_efficientad tests
+uv run --no-sources --locked --extra dev pytest tests/ -m "not slow"
+uv run --no-sources --locked --extra dev ruff format --check cuvis_ai_efficientad tests
+uv run --no-sources --locked --extra dev ruff check cuvis_ai_efficientad tests
 ```
+
+The slow test checks a trained checkpoint against anomalib's own inference path; it needs the
+checkpoint and the size it was trained at:
+
+```bash
+EFFICIENTAD_CKPT=weights.ckpt EFFICIENTAD_IMAGE_SIZE=512 uv run --no-sources --locked --extra dev pytest tests/ -m slow
+```
+
+A plain `uv sync` installs the `cuda` dependency group: torch and torchvision from the PyTorch cu128
+index (cu130 on aarch64 Linux, e.g. Jetson). The pins are scoped to that group, so an environment
+that installs the plugin as a path or git dependency inherits none of them. After a dependency
+change, regenerate the lock with `uv lock --no-sources` (CI resolves torch from PyPI).
 
 ## References
 
