@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+- Fixed every dependency resolution that reads the `cuda` group's index pins (`uv sync`,
+  `uv run`, the release workflow), which failed with "conflicting indexes for package torch": the
+  base torch and torchvision requirements are declared once per index fork, as in cuvis-ai. The
+  v0.1.0 release workflow failed on this; installing the v0.1.0 tag as a git or path dependency
+  is not affected.
+
 ## 0.1.0 - 2026-09-28
 
 ### Added

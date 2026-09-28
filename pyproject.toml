@@ -44,9 +44,15 @@ dependencies = [
   # The EfficientAD torch model (PDN teacher / student + autoencoder) is used unchanged from anomalib;
   # pinned to the release the weights were trained with.
   "anomalib==2.1.0",
-  # anomalib 2.1.0 declares neither torch nor torchvision (they are extras there).
-  "torch>=2.2",
-  "torchvision>=0.17",
+  # anomalib 2.1.0 declares neither torch nor torchvision (they are extras there). Each is declared
+  # once per index fork on purpose (as cuvis-ai does): the `cuda` group's index pins below fork on
+  # the same markers, and uv assigns an explicit index only to a requirement inside one fork. An
+  # unsplit requirement next to the two gated indexes fails every resolution that reads the
+  # sources (`uv sync`, `uv run`) with "conflicting indexes for package torch".
+  "torch>=2.2 ; sys_platform == 'linux' and platform_machine == 'aarch64'",
+  "torch>=2.2 ; sys_platform != 'linux' or platform_machine != 'aarch64'",
+  "torchvision>=0.17 ; sys_platform == 'linux' and platform_machine == 'aarch64'",
+  "torchvision>=0.17 ; sys_platform != 'linux' or platform_machine != 'aarch64'",
   # Importing an anomalib model triggers anomalib.models.__init__, which eagerly loads every model:
   # WinClip needs open_clip and the video chain (ai_vad.clip) needs requests. Both are undeclared
   # runtime dependencies of anomalib 2.1.0 (cuvis-ai-dinomaly declares them for the same reason).
