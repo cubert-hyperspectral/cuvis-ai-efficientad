@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## 0.2.0 - 2026-09-28
+
+### Added
+- Added `autocast_dtype` (`float16` / `bfloat16`) to `EfficientAdDetector`: the model runs under
+  CUDA autocast; CUDA inputs only, outputs stay float32. On Jetson Thor (walnut OR pipeline)
+  float16 cuts the node from 33.6 to 23.2 ms with the gate frame scores within 0.4 % and
+  identical decisions on the probe frames; re-validate a pipeline before switching it.
+- Added `tf32` to `EfficientAdDetector`: TF32 tensor-core matmuls in the float32 forward (the
+  convolutions use TF32 by PyTorch's default already), set around the forward and restored
+  afterwards; ignored under `autocast_dtype`. On Jetson Thor it trims the node from 33.9 to
+  29.7 ms with bit-identical maps on the probe cubes.
+
+### Fixed
+- Fixed the release workflow uploading uv's `dist/.gitignore` as a release asset
+  (`default.gitignore` on v0.1.1): it now uploads the wheel and the sdist only.
+
 ## 0.1.1 - 2026-09-28
 
 ### Fixed

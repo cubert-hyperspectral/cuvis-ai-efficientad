@@ -134,6 +134,7 @@ def test_load_checkpoint_with_unimportable_training_class(tmp_path, monkeypatch)
         {"model_size": "large"},
         {"topk_frac": 0.0},
         {"teacher_out_channels": 0},
+        {"autocast_dtype": "float8"},
     ],
 )
 def test_invalid_hparams_raise(kw):
@@ -146,3 +147,33 @@ def test_hparams_recorded():
     assert node.hparams["image_size"] == [256, 320]
     assert node.hparams["model_size"] == "medium"
     assert node.hparams["topk_frac"] == 0.002
+
+
+def test_autocast_is_a_no_op_on_cpu_inputs(detector, rgb):
+    amp = EfficientAdDetector(image_size=SIZE, autocast_dtype="float16", name="effad_amp")
+    amp.model.load_state_dict(detector.model.state_dict())
+    assert amp.hparams["autocast_dtype"] == "float16" and detector.hparams["autocast_dtype"] is None
+    a, b = detector(rgb_image=rgb), amp(rgb_image=rgb)
+    assert torch.equal(a["scores"], b["scores"]) and torch.equal(
+        a["anomaly_score"], b["anomaly_score"]
+    )
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required for autocast")
+def test_autocast_on_cuda_keeps_float32_outputs_close_to_fp32(detector, rgb):
+    amp = EfficientAdDetector(image_size=SIZE, autocast_dtype="float16", name="effad_amp")
+    amp.model.load_state_dict(detector.model.state_dict())
+    detector, amp, rgb = detector.cuda(), amp.cuda(), rgb.cuda()
+    a, b = detector(rgb_image=rgb), amp(rgb_image=rgb)
+    assert b["scores"].dtype == torch.float32
+    assert torch.allclose(b["scores"], a["scores"], rtol=5e-2, atol=5e-2)
+
+
+def test_tf32_is_a_no_op_on_cpu_and_restores_the_process_setting(detector, rgb):
+    tf = EfficientAdDetector(image_size=SIZE, tf32=True, name="effad_tf32")
+    tf.model.load_state_dict(detector.model.state_dict())
+    assert tf.hparams["tf32"] is True and detector.hparams["tf32"] is False
+    before = torch.get_float32_matmul_precision()
+    a, b = detector(rgb_image=rgb), tf(rgb_image=rgb)
+    assert torch.get_float32_matmul_precision() == before
+    assert torch.equal(a["scores"], b["scores"])
