@@ -18,6 +18,8 @@ before the pipeline is saved.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +40,20 @@ _AUTOCAST_DTYPES: dict[str, torch.dtype] = {
     "bfloat16": torch.bfloat16,
     "bf16": torch.bfloat16,
 }
+
+
+@contextmanager
+def _tf32_matmul(enabled: bool) -> Iterator[None]:
+    """Allow TF32 tensor-core matmuls inside the block and restore the process setting after it."""
+    if not enabled:
+        yield
+        return
+    previous = torch.get_float32_matmul_precision()
+    torch.set_float32_matmul_precision("high")
+    try:
+        yield
+    finally:
+        torch.set_float32_matmul_precision(previous)
 
 
 class EfficientAdDetector(Node):
@@ -77,6 +93,7 @@ class EfficientAdDetector(Node):
         pad_maps: bool = True,
         topk_frac: float = 0.001,
         autocast_dtype: str | None = None,
+        tf32: bool = False,
         **kwargs: Any,
     ) -> None:
         """Create an EfficientAD detector with untrained weights (restore or import them).
@@ -95,6 +112,10 @@ class EfficientAdDetector(Node):
             EfficientAD model under CUDA autocast (tensor cores). Applied on CUDA inputs only; the
             outputs stay float32. The numerics change slightly, so re-validate and re-calibrate a
             pipeline first.
+        tf32 : allow TF32 tensor-core matmuls in the float32 forward (float32 storage and
+            accumulation; the convolutions use TF32 by PyTorch's default already), set around
+            the forward and restored afterwards. CUDA inputs only; ignored when
+            ``autocast_dtype`` is set.
         """
         name = type(self).__name__
         size = (
@@ -126,6 +147,7 @@ class EfficientAdDetector(Node):
         self.pad_maps = bool(pad_maps)
         self.topk_frac = float(topk_frac)
         self.autocast_dtype = autocast_dtype
+        self.tf32 = bool(tf32)
         super().__init__(
             image_size=self.image_size,
             teacher_out_channels=self.teacher_out_channels,
@@ -134,6 +156,7 @@ class EfficientAdDetector(Node):
             pad_maps=self.pad_maps,
             topk_frac=self.topk_frac,
             autocast_dtype=self.autocast_dtype,
+            tf32=self.tf32,
             **kwargs,
         )
         self._amp_dtype = _AUTOCAST_DTYPES.get(autocast_dtype) if autocast_dtype else None
@@ -200,9 +223,11 @@ class EfficientAdDetector(Node):
             antialias=True,
         )
         amp = self._amp_dtype is not None and x.is_cuda
+        tf32 = self.tf32 and x.is_cuda and not amp
         with (
             torch.no_grad(),
             torch.autocast(device_type="cuda", dtype=self._amp_dtype, enabled=amp),
+            _tf32_matmul(tf32),
         ):
             amap = self.model(x).anomaly_map
         amap = F.interpolate(amap.float(), size=(h, w), mode="bilinear", align_corners=False)

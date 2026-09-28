@@ -167,3 +167,13 @@ def test_autocast_on_cuda_keeps_float32_outputs_close_to_fp32(detector, rgb):
     a, b = detector(rgb_image=rgb), amp(rgb_image=rgb)
     assert b["scores"].dtype == torch.float32
     assert torch.allclose(b["scores"], a["scores"], rtol=5e-2, atol=5e-2)
+
+
+def test_tf32_is_a_no_op_on_cpu_and_restores_the_process_setting(detector, rgb):
+    tf = EfficientAdDetector(image_size=SIZE, tf32=True, name="effad_tf32")
+    tf.model.load_state_dict(detector.model.state_dict())
+    assert tf.hparams["tf32"] is True and detector.hparams["tf32"] is False
+    before = torch.get_float32_matmul_precision()
+    a, b = detector(rgb_image=rgb), tf(rgb_image=rgb)
+    assert torch.get_float32_matmul_precision() == before
+    assert torch.equal(a["scores"], b["scores"])
