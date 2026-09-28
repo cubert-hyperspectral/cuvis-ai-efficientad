@@ -18,8 +18,8 @@
 - On Jetson Thor (walnut OR pipeline, 512 px) the model takes 16.5 ms as a TF32 engine (29.6 ms in
   torch) and 6.2 ms as an fp16 engine (21.9 ms under autocast). On 287 validation frames the stand-
   rule decisions are identical to the torch variants.
-- Deployed pipelines should set `engine_dir`: cuvis.next runs a session with its own home directory
-  on Linux, where the default engine folder (`~/.cache/cuvis-ai/tensorrt/<plugin>`) is empty.
+- Deployed pipelines should set `engine_dir`: cuvis.next runs each session with its own empty home
+  directory, so the default engine folder (`~/.cache/cuvis-ai/tensorrt/<plugin>`) has no engines.
 
 ## 0.2.0 - 2026-09-28
 
