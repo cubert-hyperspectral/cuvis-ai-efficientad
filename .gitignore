@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.coverage
+coverage.xml
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+outputs/
+*.pt
+!tests/data/*.pt
+.cuvis-ai-env.json
+
+.secrets.baseline.new
