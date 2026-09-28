@@ -65,6 +65,10 @@ and the TensorRT version, so a pipeline never runs an engine built from other we
 (29.6 ms in torch) and 6.2 ms as an fp16 engine (21.9 ms under autocast), with the same decisions on
 287 validation frames; re-validate a pipeline before switching it.
 
+Under cuvis.next give deployed pipelines an explicit `engine_dir`: it runs a pipeline in a session
+with its own home directory on Linux, where the default folder is empty. Build the engines with the
+same yaml; `build-pipeline` writes them there.
+
 ## Build a pipeline from an anomalib checkpoint
 
 ```python
