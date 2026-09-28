@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.3.0 - 2026-09-28
+
 ### Added
 - Added a TensorRT backend to `EfficientAdDetector` (`backend="tensorrt"`, `engine_dir`): the model
   runs as a TensorRT engine built on the machine from the node's fitted weights, with the resize,
