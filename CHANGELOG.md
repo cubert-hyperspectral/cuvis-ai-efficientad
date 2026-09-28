@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.1.1 - 2026-09-28
+
 ### Fixed
 - Fixed every dependency resolution that reads the `cuda` group's index pins (`uv sync`,
   `uv run`, the release workflow), which failed with "conflicting indexes for package torch": the
