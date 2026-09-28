@@ -32,6 +32,12 @@ from torchvision.transforms.v2 import InterpolationMode
 from torchvision.transforms.v2 import functional as TF
 
 _SIZES = {"small": EfficientAdModelSize.S, "medium": EfficientAdModelSize.M}
+_AUTOCAST_DTYPES: dict[str, torch.dtype] = {
+    "float16": torch.float16,
+    "fp16": torch.float16,
+    "bfloat16": torch.bfloat16,
+    "bf16": torch.bfloat16,
+}
 
 
 class EfficientAdDetector(Node):
@@ -70,6 +76,7 @@ class EfficientAdDetector(Node):
         padding: bool = False,
         pad_maps: bool = True,
         topk_frac: float = 0.001,
+        autocast_dtype: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Create an EfficientAD detector with untrained weights (restore or import them).
@@ -84,6 +91,10 @@ class EfficientAdDetector(Node):
         pad_maps : pad the maps by 4 px before resizing when ``padding`` is False (anomalib
             default True).
         topk_frac : fraction of output pixels averaged into ``anomaly_score``.
+        autocast_dtype : ``None`` (float32, default), ``"float16"`` or ``"bfloat16"``: run the
+            EfficientAD model under CUDA autocast (tensor cores). Applied on CUDA inputs only; the
+            outputs stay float32. The numerics change slightly, so re-validate and re-calibrate a
+            pipeline first.
         """
         name = type(self).__name__
         size = (
@@ -103,12 +114,18 @@ class EfficientAdDetector(Node):
             )
         if not 0.0 < float(topk_frac) <= 1.0:
             raise ValueError(f"{name}: topk_frac must be in (0, 1], got {topk_frac}")
+        if autocast_dtype is not None and autocast_dtype not in _AUTOCAST_DTYPES:
+            raise ValueError(
+                f"{name}: autocast_dtype must be None or one of {sorted(_AUTOCAST_DTYPES)}, "
+                f"got {autocast_dtype!r}"
+            )
         self.image_size = size
         self.teacher_out_channels = int(teacher_out_channels)
         self.model_size = str(model_size)
         self.padding = bool(padding)
         self.pad_maps = bool(pad_maps)
         self.topk_frac = float(topk_frac)
+        self.autocast_dtype = autocast_dtype
         super().__init__(
             image_size=self.image_size,
             teacher_out_channels=self.teacher_out_channels,
@@ -116,8 +133,10 @@ class EfficientAdDetector(Node):
             padding=self.padding,
             pad_maps=self.pad_maps,
             topk_frac=self.topk_frac,
+            autocast_dtype=self.autocast_dtype,
             **kwargs,
         )
+        self._amp_dtype = _AUTOCAST_DTYPES.get(autocast_dtype) if autocast_dtype else None
         self.model = EfficientAdModel(
             teacher_out_channels=self.teacher_out_channels,
             model_size=_SIZES[self.model_size],
@@ -180,7 +199,11 @@ class EfficientAdDetector(Node):
             interpolation=InterpolationMode.BILINEAR,
             antialias=True,
         )
-        with torch.no_grad():
+        amp = self._amp_dtype is not None and x.is_cuda
+        with (
+            torch.no_grad(),
+            torch.autocast(device_type="cuda", dtype=self._amp_dtype, enabled=amp),
+        ):
             amap = self.model(x).anomaly_map
         amap = F.interpolate(amap.float(), size=(h, w), mode="bilinear", align_corners=False)
         scores = amap.permute(0, 2, 3, 1).contiguous()

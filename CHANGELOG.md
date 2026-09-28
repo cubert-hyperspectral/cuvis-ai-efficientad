@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- Added `autocast_dtype` (`float16` / `bfloat16`) to `EfficientAdDetector`: the model runs under
+  CUDA autocast; CUDA inputs only, outputs stay float32. On Jetson Thor (walnut OR pipeline)
+  float16 cuts the node from 33.6 to 23.2 ms with the gate frame scores within 0.4 % and
+  identical decisions on the probe frames; re-validate a pipeline before switching it.
+
 ## 0.1.1 - 2026-09-28
 
 ### Fixed
