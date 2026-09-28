@@ -114,3 +114,7 @@ jobs:
         run: uv build --no-sources
       - name: Validate distributions
         run: uv run --no-sources --with twine twine check dist/*
+      # The --no-sources runs above never read [tool.uv.sources]; a local `uv sync` and the release
+      # workflow do. Resolving with them here fails a broken index fork on the PR, not on the tag.
+      - name: Resolve with the index sources
+        run: uv lock --dry-run
