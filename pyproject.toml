@@ -62,6 +62,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# TensorRT backend (backend="tensorrt"). The wheel follows torch's CUDA: cu13 on Linux aarch64 (Jetson Thor),
+# cu12 on Windows / Linux x86_64. TensorRT 10: TensorRT 11 dropped the FP16 builder flag. Engines are tied to the
+# TensorRT version, so a different version means rebuilding them. onnx is only needed to build engines.
+tensorrt = [
+  "tensorrt-cu13==10.15.1.29; sys_platform == 'linux' and platform_machine == 'aarch64'",
+  "tensorrt-cu12==10.15.1.29; sys_platform == 'win32' or (sys_platform == 'linux' and platform_machine == 'x86_64')",
+  "onnx>=1.16,<2",
+]
 dev = [
   "pytest>=7",
   "pytest-cov",

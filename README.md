@@ -38,9 +38,32 @@ Requires `cuvis-ai-core >= 0.17.4` and `cuvis-ai-schemas >= 0.12.0` on Python 3.
 | `padding` | false | zero padding in the convolutions |
 | `pad_maps` | true | pad the maps by 4 px before resizing when `padding` is false |
 | `topk_frac` | 0.001 | pixel fraction averaged into `anomaly_score` |
+| `autocast_dtype` | none | `float16` / `bfloat16`: run the model under CUDA autocast |
+| `tf32` | false | TF32 tensor-core matmuls in the float32 forward |
+| `backend` | `torch` | `tensorrt`: run the model as a TensorRT engine (see below) |
+| `engine_dir` | none | where the TensorRT engines are kept (default: the user cache) |
 
 Weights are frozen, and the model stays in eval mode under `pipeline.train()`, because anomalib
 returns training losses in train mode. There is no Phase 1 and no `TRAINABLE_BUFFERS`.
+
+## TensorRT backend
+
+`backend: tensorrt` runs anomalib's model as a TensorRT engine; the resize, the map upsampling and
+the image score stay in torch. The engine precision follows `autocast_dtype` / `tf32`: float16 ->
+fp16 engine, `tf32` -> TF32 engine, neither -> IEEE float32 engine. Engines are built once per
+machine from the fitted weights, after the pipeline is saved:
+
+```bash
+pip install "cuvis-ai-efficientad[tensorrt]"   # TensorRT 10 for torch's CUDA, onnx to build
+python -m cuvis_ai_efficientad.trt_engine build-pipeline pipeline.yaml
+```
+
+An engine's file name carries a fingerprint of the weights, the precision, the input size, the GPU
+and the TensorRT version, so a pipeline never runs an engine built from other weights. They live in
+`$CUVIS_AI_TRT_ENGINE_DIR/efficientad` (default `~/.cache/cuvis-ai/tensorrt/efficientad`) or
+`engine_dir`. On Jetson Thor (walnut OR pipeline, 512 px) the model takes 16.5 ms as a TF32 engine
+(29.6 ms in torch) and 6.2 ms as an fp16 engine (21.9 ms under autocast), with the same decisions on
+287 validation frames; re-validate a pipeline before switching it.
 
 ## Build a pipeline from an anomalib checkpoint
 
