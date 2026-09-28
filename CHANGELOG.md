@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.2.0 - 2026-09-28
+
 ### Added
 - Added `autocast_dtype` (`float16` / `bfloat16`) to `EfficientAdDetector`: the model runs under
   CUDA autocast; CUDA inputs only, outputs stay float32. On Jetson Thor (walnut OR pipeline)
