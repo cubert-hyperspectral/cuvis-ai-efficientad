@@ -12,6 +12,10 @@
   afterwards; ignored under `autocast_dtype`. On Jetson Thor it trims the node from 33.9 to
   29.7 ms with bit-identical maps on the probe cubes.
 
+### Fixed
+- Fixed the release workflow uploading uv's `dist/.gitignore` as a release asset
+  (`default.gitignore` on v0.1.1): it now uploads the wheel and the sdist only.
+
 ## 0.1.1 - 2026-09-28
 
 ### Fixed
