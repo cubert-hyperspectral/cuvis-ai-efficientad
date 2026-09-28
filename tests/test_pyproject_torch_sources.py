@@ -5,6 +5,8 @@ dependency group: aarch64 Linux (Jetson Thor, CUDA 13) from cu130, every other p
 Both entries stay scoped to the ``cuda`` group, so an environment that installs this plugin as a
 path or git dependency (a cuvis.next child environment) inherits no index pin. The committed lock
 is the CI lock: CI runs ``uv run --no-sources --locked``, so the lock must resolve torch from PyPI.
+The base requirements are split along the same markers, because uv assigns an explicit index
+only to a requirement inside one resolver fork.
 """
 
 from __future__ import annotations
@@ -14,11 +16,15 @@ from pathlib import Path
 
 import pytest
 from packaging.markers import Marker
+from packaging.requirements import Requirement
 
 pytestmark = pytest.mark.unit
 
 ROOT = Path(__file__).resolve().parents[1]
 FORKED = ("torch", "torchvision")
+# The forked packages with a base requirement in [project].dependencies (anomalib declares
+# neither, so the plugin declares both).
+BASE_FORKED = FORKED
 INDEX_URL = {
     "pytorch-cu128": "https://download.pytorch.org/whl/cu128",
     "pytorch-cu130": "https://download.pytorch.org/whl/cu130",
@@ -53,6 +59,28 @@ def test_each_platform_resolves_one_index(pyproject, package, platform):
     entries = pyproject["tool"]["uv"]["sources"][package]
     matching = [e["index"] for e in entries if Marker(e["marker"]).evaluate(ENVIRONMENTS[platform])]
     assert matching == [EXPECTED_INDEX[platform]]
+
+
+@pytest.mark.parametrize("package", FORKED)
+def test_base_requirements_are_split_along_the_fork_markers(pyproject, package):
+    """One base requirement per index fork with one floor, or none (the cuvis-ai pattern).
+
+    An unsplit requirement next to the two marker-gated pins fails every resolution that reads the
+    sources (``uv sync``, ``uv run``, the release workflow) with "conflicting indexes for package
+    torch in all marker environments". CI's ``--no-sources`` runs never read the sources.
+    """
+    requirements = [
+        Requirement(dep)
+        for dep in pyproject["project"]["dependencies"]
+        if Requirement(dep).name == package
+    ]
+    expected = 2 if package in BASE_FORKED else 0
+    assert len(requirements) == expected, f"{package}: {[str(r) for r in requirements]}"
+    if requirements:
+        assert len({str(req.specifier) for req in requirements}) == 1, f"{package}: floors differ"
+        entries = pyproject["tool"]["uv"]["sources"][package]
+        source_markers = {str(Marker(entry["marker"])) for entry in entries}
+        assert {str(req.marker) for req in requirements} == source_markers
 
 
 def test_indexes_are_explicit_pytorch_indexes(pyproject):
