@@ -29,6 +29,8 @@ CUDA = torch.cuda.is_available()
 class FakeEngine:
     """Stands in for a TensorRT engine: computes the model in torch, records its inputs."""
 
+    device = torch.device("cpu")
+
     def __init__(self, model):
         self.model = model
         self.inputs: list[torch.Tensor] = []
@@ -323,6 +325,7 @@ def test_node_build_engine_skips_an_existing_engine(monkeypatch, tmp_path):
 
 
 def test_build_pipeline_cli_builds_each_tensorrt_node(monkeypatch, capsys):
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
     built = []
     trt_node = make_node(backend="tensorrt")
     torch_node = make_node()
@@ -372,3 +375,22 @@ def test_real_tensorrt_engine_matches_the_torch_backend(tmp_path, rgb, kw, rel_t
     assert float((got["scores"] - want["scores"]).abs().max()) <= rel_tol * scale
     assert float((got["anomaly_score"] - want["anomaly_score"]).abs().max()) <= rel_tol * scale
     assert not node.model.training
+
+
+def test_an_engine_built_for_another_device_is_reloaded(detector, rgb, monkeypatch):
+    node = make_node(backend="tensorrt")
+    stale = FakeEngine(node.model)
+    stale.device = torch.device("cuda", 1)  # bound to a GPU the input does not live on
+    node._engine = stale
+    fresh = FakeEngine(node.model)
+    monkeypatch.setattr(node, "_load_engine", lambda device: fresh)
+    node(rgb_image=rgb)
+    assert node._engine is fresh and len(fresh.inputs) == 1
+    assert not stale.inputs  # the stale engine never ran
+
+
+def test_build_pipeline_cli_needs_a_cuda_gpu(monkeypatch, capsys):
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    with pytest.raises(SystemExit) as info:
+        trt_engine.main(["build-pipeline", "p.yaml"])
+    assert info.value.code == 1 and "CUDA GPU" in capsys.readouterr().err

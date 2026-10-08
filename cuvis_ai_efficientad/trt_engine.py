@@ -346,6 +346,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     pipe.add_argument("--force", action="store_true", help="rebuild existing engines")
     args = ap.parse_args(argv)
+    if not torch.cuda.is_available():
+        ap.exit(
+            1, "build-pipeline needs a CUDA GPU: engines are built on the device they run on.\n"
+        )
     from cuvis_ai_core.utils.restore import restore_pipeline
 
     for yaml_path in args.pipelines:

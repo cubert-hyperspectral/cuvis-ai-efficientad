@@ -327,7 +327,9 @@ class EfficientAdDetector(Node):
             antialias=True,
         )
         if self.backend == "tensorrt":
-            if self._engine is None:
+            # The precision is baked into the engine (engine_precision); autocast and TF32
+            # apply to the torch path below only.
+            if self._engine is None or self._engine.device != x.device:  # another GPU: reload
                 self._engine = self._load_engine(x.device)
             if b == 1:
                 amap = self._engine(x)["anomaly_map"]

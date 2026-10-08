@@ -20,6 +20,8 @@
   rule decisions are identical to the torch variants.
 - Deployed pipelines should set `engine_dir`: cuvis.next runs each session with its own empty home
   directory, so the default engine folder (`~/.cache/cuvis-ai/tensorrt/<plugin>`) has no engines.
+- A `backend: tensorrt` node reloads its engine when its input arrives on another device than
+  the engine was built for; `build-pipeline` stops with a message when no CUDA GPU is available.
 
 ## 0.2.0 - 2026-09-28
 
