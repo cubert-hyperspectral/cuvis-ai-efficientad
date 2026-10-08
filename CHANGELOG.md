@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## 0.3.0 - 2026-09-28
+
+### Added
+- Added a TensorRT backend to `EfficientAdDetector` (`backend="tensorrt"`, `engine_dir`): the model
+  runs as a TensorRT engine built on the machine from the node's fitted weights, with the resize,
+  map upsampling and image score unchanged in torch. The engine precision follows the node's
+  options (float16 autocast -> fp16, `tf32` -> TF32, neither -> IEEE float32). Engine file names
+  carry a fingerprint of the weights, the precision, input size, GPU and TensorRT version; loading
+  new weights drops the loaded engine.
+- Added `python -m cuvis_ai_efficientad.trt_engine build-pipeline <yaml>`, which builds the engines
+  of a pipeline's `backend: tensorrt` nodes.
+- Added the `tensorrt` extra: TensorRT 10.15.1.29 for torch's CUDA (`tensorrt-cu12` / `-cu13`) and
+  onnx.
+- On Jetson Thor (walnut OR pipeline, 512 px) the model takes 16.5 ms as a TF32 engine (29.6 ms in
+  torch) and 6.2 ms as an fp16 engine (21.9 ms under autocast). On 287 validation frames the stand-
+  rule decisions are identical to the torch variants.
+- Deployed pipelines should set `engine_dir`: cuvis.next runs each session with its own empty home
+  directory, so the default engine folder (`~/.cache/cuvis-ai/tensorrt/<plugin>`) has no engines.
+- A `backend: tensorrt` node reloads its engine when its input arrives on another device than
+  the engine was built for; `build-pipeline` stops with a message when no CUDA GPU is available.
+
 ## 0.2.0 - 2026-09-28
 
 ### Added
